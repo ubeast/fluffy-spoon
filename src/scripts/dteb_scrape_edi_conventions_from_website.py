@@ -57,23 +57,23 @@ def scrape_edi_conventions(url):
         print(f"   URL: {conv['pdf_url']}\n")
     
     # Save to JSON file
-    with open('edi_conventions.json', 'w', encoding='utf-8') as f:
+    with open('dteb_edi_conventions.json', 'w', encoding='utf-8') as f:
         json.dump(edi_conventions, f, indent=2, ensure_ascii=False)
-    print("✓ Saved to: edi_conventions.json")
+    print("✓ Saved to: dteb_edi_conventions.json")
     
     # Save to CSV file
-    with open('edi_conventions.csv', 'w', newline='', encoding='utf-8') as f:
+    with open('dteb_edi_conventions.csv', 'w', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=['convention_name', 'pdf_url'])
         writer.writeheader()
         writer.writerows(edi_conventions)
-    print("✓ Saved to: edi_conventions.csv")
+    print("✓ Saved to: dteb_edi_conventions.csv")
     
     # Save to text file
-    with open('edi_conventions.txt', 'w', encoding='utf-8') as f:
+    with open('dteb_edi_conventions.txt', 'w', encoding='utf-8') as f:
         for conv in edi_conventions:
             f.write(f"{conv['convention_name']}\n")
             f.write(f"{conv['pdf_url']}\n\n")
-    print("✓ Saved to: edi_conventions.txt")
+    print("✓ Saved to: _dtrb_edi_conventions.txt")
     
     return edi_conventions
 
