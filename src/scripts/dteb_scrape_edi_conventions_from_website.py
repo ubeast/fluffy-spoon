@@ -77,6 +77,31 @@ def scrape_edi_conventions(url):
     
     return edi_conventions
 
+def process_downloaded_data():
+    import pandas as pd
+    df = pd.read_csv('edi_conventions.csv')
+    
+    df['file_name'] = df.pdf_url.str.split('/').str[-1]
+    
+    df['owner'] = df.convention_name.apply(lambda s: s.split()[0].strip())
+    df['edi_nbr'] = df.convention_name.apply(lambda s: s.split()[1].split('.')[0] if s.split()[1].split('.')[0].isdigit() else '')
+    df['edi_alpha'] = df.convention_name.apply(lambda s: s.split()[1].split('.')[1] if s.split()[1].split('.')[1].isalpha() else '')
+    df['release'] = df.convention_name.apply(lambda s: s.split()[1].split('.')[-1].strip())
+    df['version'] = df.convention_name.apply(lambda s: s.split('VERSION')[-1].strip() if 'VERSION' in s else '0' )
+    df['edi_name'] = df.convention_name.apply(lambda s: s.split(' ', 2)[-1].split('VERSION')[0].strip())
+    
+    cols = ['owner', 'edi_nbr', 'edi_alpha', 'release', 'version', 'edi_name', 'file_name', 'document_title', 'pdf_url']
+    df.rename(columns = {'convention_name': 'document_title'}, inplace=True)
+    df = df[cols]
+    
+    dupe_titles = df[df.edi_name == 'RESERVATION (BOOKING) (OCEAN)']
+    releases = df.release.value_counts()
+
+    return df, dupe_titles, releases
+    
+#df, dupe_titles, releases = process_downloaded_data()
+
+
 if __name__ == "__main__":
     # USTRANSCOM URL
     url = "https://www.ustranscom.mil/cmd/associated/dteb/dod-transportation.cfm"
