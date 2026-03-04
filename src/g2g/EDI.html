@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EDI 315 — Parse Results</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+–bg:        #0a0c0f;
+–surface:   #111418;
+–border:    #1e2328;
+–border2:   #2a3040;
+–text:      #c8d0db;
+–muted:     #4a5568;
+–accent:    #00d4ff;
+–accent2:   #ff6b35;
+–green:     #00e676;
+–yellow:    #ffd740;
+–red:       #ff5252;
+–purple:    #b388ff;
+}
+
+- { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+background: var(–bg);
+color: var(–text);
+font-family: ‘IBM Plex Sans’, sans-serif;
+font-size: 13px;
+min-height: 100vh;
+}
+
+/* ── Header ── */
+header {
+background: var(–surface);
+border-bottom: 1px solid var(–border);
+padding: 18px 28px;
+display: flex;
+align-items: center;
+justify-content: space-between;
+position: sticky;
+top: 0;
+z-index: 100;
+}
+
+.header-left { display: flex; align-items: center; gap: 16px; }
+
+.logo {
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 11px;
+font-weight: 600;
+letter-spacing: 0.15em;
+color: var(–accent);
+text-transform: uppercase;
+border: 1px solid var(–accent);
+padding: 4px 8px;
+}
+
+.header-title {
+font-size: 13px;
+font-weight: 500;
+color: var(–text);
+}
+
+.header-meta {
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 11px;
+color: var(–muted);
+}
+
+.badge {
+display: inline-flex;
+align-items: center;
+gap: 6px;
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 11px;
+padding: 3px 9px;
+border-radius: 2px;
+}
+
+.badge-green  { background: rgba(0,230,118,0.1);  color: var(–green);  border: 1px solid rgba(0,230,118,0.25); }
+.badge-blue   { background: rgba(0,212,255,0.1);  color: var(–accent); border: 1px solid rgba(0,212,255,0.25); }
+.badge-orange { background: rgba(255,107,53,0.1); color: var(–accent2);border: 1px solid rgba(255,107,53,0.25); }
+.badge-yellow { background: rgba(255,215,64,0.1); color: var(–yellow); border: 1px solid rgba(255,215,64,0.25); }
+.badge-red    { background: rgba(255,82,82,0.1);  color: var(–red);    border: 1px solid rgba(255,82,82,0.25); }
+.badge-purple { background: rgba(179,136,255,0.1);color: var(–purple); border: 1px solid rgba(179,136,255,0.25); }
+.badge-muted  { background: rgba(74,85,104,0.15); color: var(–muted);  border: 1px solid rgba(74,85,104,0.3); }
+
+/* ── Envelope bar ── */
+.envelope {
+background: var(–surface);
+border-bottom: 1px solid var(–border);
+padding: 12px 28px;
+display: flex;
+gap: 32px;
+flex-wrap: wrap;
+}
+
+.env-item { display: flex; flex-direction: column; gap: 3px; }
+.env-label { font-family: ‘IBM Plex Mono’, monospace; font-size: 10px; color: var(–muted); text-transform: uppercase; letter-spacing: 0.1em; }
+.env-value { font-family: ‘IBM Plex Mono’, monospace; font-size: 12px; color: var(–text); font-weight: 500; }
+
+/* ── Toolbar ── */
+.toolbar {
+padding: 12px 28px;
+display: flex;
+align-items: center;
+gap: 12px;
+border-bottom: 1px solid var(–border);
+}
+
+.search-wrap {
+position: relative;
+flex: 1;
+max-width: 340px;
+}
+
+.search-wrap input {
+width: 100%;
+background: var(–surface);
+border: 1px solid var(–border2);
+color: var(–text);
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 12px;
+padding: 7px 12px 7px 32px;
+outline: none;
+transition: border-color 0.15s;
+}
+
+.search-wrap input:focus { border-color: var(–accent); }
+.search-wrap input::placeholder { color: var(–muted); }
+
+.search-icon {
+position: absolute;
+left: 10px;
+top: 50%;
+transform: translateY(-50%);
+color: var(–muted);
+font-size: 12px;
+}
+
+.filter-group { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.filter-btn {
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 10px;
+letter-spacing: 0.05em;
+padding: 5px 10px;
+background: var(–surface);
+border: 1px solid var(–border2);
+color: var(–muted);
+cursor: pointer;
+transition: all 0.15s;
+}
+
+.filter-btn:hover, .filter-btn.active {
+border-color: var(–accent);
+color: var(–accent);
+background: rgba(0,212,255,0.06);
+}
+
+.count-chip {
+margin-left: auto;
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 11px;
+color: var(–muted);
+}
+
+/* ── Table ── */
+.table-wrap {
+overflow-x: auto;
+padding: 0 28px 40px;
+}
+
+table {
+width: 100%;
+border-collapse: collapse;
+min-width: 1100px;
+}
+
+thead tr {
+border-bottom: 1px solid var(–border2);
+}
+
+th {
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 10px;
+font-weight: 600;
+letter-spacing: 0.1em;
+text-transform: uppercase;
+color: var(–muted);
+padding: 10px 12px;
+text-align: left;
+white-space: nowrap;
+cursor: pointer;
+user-select: none;
+}
+
+th:hover { color: var(–accent); }
+th.sort-asc::after  { content: ’ ↑’; color: var(–accent); }
+th.sort-desc::after { content: ’ ↓’; color: var(–accent); }
+
+tbody tr {
+border-bottom: 1px solid var(–border);
+transition: background 0.1s;
+cursor: pointer;
+animation: rowIn 0.25s ease both;
+}
+
+tbody tr:hover { background: rgba(255,255,255,0.03); }
+tbody tr.selected { background: rgba(0,212,255,0.05); border-left: 2px solid var(–accent); }
+
+@keyframes rowIn {
+from { opacity: 0; transform: translateY(4px); }
+to   { opacity: 1; transform: translateY(0); }
+}
+
+td {
+padding: 10px 12px;
+vertical-align: middle;
+white-space: nowrap;
+}
+
+.mono { font-family: ‘IBM Plex Mono’, monospace; font-size: 11px; }
+.dim  { color: var(–muted); }
+.bold { font-weight: 600; }
+
+.container-num {
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 12px;
+font-weight: 600;
+color: var(–accent);
+letter-spacing: 0.05em;
+}
+
+.route-arrow {
+color: var(–muted);
+font-size: 10px;
+}
+
+.route-cell {
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 10px;
+color: var(–text);
+max-width: 280px;
+white-space: normal;
+line-height: 1.5;
+}
+
+.route-step { display: inline; }
+.route-port { color: var(–accent); }
+
+/* ── Detail panel ── */
+.detail-panel {
+position: fixed;
+right: 0;
+top: 0;
+width: 380px;
+height: 100vh;
+background: var(–surface);
+border-left: 1px solid var(–border2);
+padding: 0;
+display: none;
+flex-direction: column;
+z-index: 200;
+box-shadow: -8px 0 32px rgba(0,0,0,0.4);
+}
+
+.detail-panel.open { display: flex; }
+
+.detail-header {
+padding: 18px 20px;
+border-bottom: 1px solid var(–border);
+display: flex;
+align-items: center;
+justify-content: space-between;
+}
+
+.detail-container {
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 16px;
+font-weight: 600;
+color: var(–accent);
+letter-spacing: 0.05em;
+}
+
+.close-btn {
+background: none;
+border: 1px solid var(–border2);
+color: var(–muted);
+cursor: pointer;
+padding: 4px 8px;
+font-size: 16px;
+line-height: 1;
+transition: color 0.15s;
+}
+
+.close-btn:hover { color: var(–text); }
+
+.detail-body { overflow-y: auto; flex: 1; padding: 20px; }
+
+.detail-section { margin-bottom: 24px; }
+
+.detail-section-title {
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 10px;
+letter-spacing: 0.15em;
+text-transform: uppercase;
+color: var(–muted);
+margin-bottom: 12px;
+padding-bottom: 6px;
+border-bottom: 1px solid var(–border);
+}
+
+.detail-row {
+display: flex;
+justify-content: space-between;
+align-items: flex-start;
+padding: 6px 0;
+border-bottom: 1px solid rgba(255,255,255,0.03);
+gap: 12px;
+}
+
+.detail-key {
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 10px;
+color: var(–muted);
+text-transform: uppercase;
+letter-spacing: 0.08em;
+white-space: nowrap;
+flex-shrink: 0;
+}
+
+.detail-val {
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 11px;
+color: var(–text);
+text-align: right;
+word-break: break-all;
+}
+
+.route-timeline { position: relative; padding: 8px 0; }
+
+.route-node {
+display: flex;
+align-items: flex-start;
+gap: 12px;
+padding: 8px 0;
+position: relative;
+}
+
+.route-node:not(:last-child)::after {
+content: ‘’;
+position: absolute;
+left: 5px;
+top: 22px;
+bottom: -8px;
+width: 1px;
+background: var(–border2);
+}
+
+.route-dot {
+width: 11px;
+height: 11px;
+border-radius: 50%;
+border: 2px solid var(–accent);
+background: var(–bg);
+flex-shrink: 0;
+margin-top: 3px;
+}
+
+.route-dot.final { border-color: var(–green); }
+.route-dot.origin { background: var(–accent); }
+
+.route-node-content { flex: 1; }
+
+.route-node-role {
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 9px;
+text-transform: uppercase;
+letter-spacing: 0.12em;
+color: var(–muted);
+margin-bottom: 2px;
+}
+
+.route-node-port {
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 12px;
+font-weight: 500;
+color: var(–text);
+}
+
+.route-node-date {
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 10px;
+color: var(–muted);
+margin-top: 2px;
+}
+
+.route-node-type-actual   { color: var(–green); }
+.route-node-type-estimated { color: var(–yellow); }
+
+/* ── Stats bar ── */
+.stats-bar {
+padding: 14px 28px;
+display: flex;
+gap: 24px;
+border-bottom: 1px solid var(–border);
+background: rgba(255,255,255,0.015);
+flex-wrap: wrap;
+}
+
+.stat { display: flex; flex-direction: column; gap: 2px; }
+.stat-val { font-family: ‘IBM Plex Mono’, monospace; font-size: 18px; font-weight: 600; color: var(–text); }
+.stat-label { font-family: ‘IBM Plex Mono’, monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em; color: var(–muted); }
+
+.no-results {
+text-align: center;
+padding: 60px 20px;
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 12px;
+color: var(–muted);
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(–bg); }
+::-webkit-scrollbar-thumb { background: var(–border2); border-radius: 3px; }
+</style>
+
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="logo">EDI 315</div>
+    <div>
+      <div class="header-title">Ocean Container Status — Parse Results</div>
+      <div class="header-meta">ISA Control: 000741032 &nbsp;·&nbsp; MAERSKLINE → DMCCOLUMBUS</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <div class="badge badge-green">● PRODUCTION</div>
+    <div class="badge badge-blue">X12 004010</div>
+    <div class="badge badge-muted">2025-03-27 17:30</div>
+  </div>
+</header>
+
+<div class="envelope">
+  <div class="env-item"><div class="env-label">Sender</div><div class="env-value">MAERSKLINE</div></div>
+  <div class="env-item"><div class="env-label">Receiver</div><div class="env-value">DMCCOLUMBUS</div></div>
+  <div class="env-item"><div class="env-label">Control #</div><div class="env-value">000741032</div></div>
+  <div class="env-item"><div class="env-label">GS Control</div><div class="env-value">558690</div></div>
+  <div class="env-item"><div class="env-label">Transactions</div><div class="env-value" id="txCount">30</div></div>
+  <div class="env-item"><div class="env-label">Date</div><div class="env-value">2025-03-27</div></div>
+  <div class="env-item"><div class="env-label">Time</div><div class="env-value">17:30 LT</div></div>
+</div>
+
+<div class="stats-bar" id="statsBar"></div>
+
+<div class="toolbar">
+  <div class="search-wrap">
+    <span class="search-icon">⌕</span>
+    <input type="text" id="searchInput" placeholder="Search container, booking, vessel, location…">
+  </div>
+  <div class="filter-group" id="filterGroup"></div>
+  <div class="count-chip" id="countChip"></div>
+</div>
+
+<div class="table-wrap">
+  <table id="mainTable">
+    <thead>
+      <tr>
+        <th data-col="idx">#</th>
+        <th data-col="container_number">Container</th>
+        <th data-col="status_code">Status</th>
+        <th data-col="status_date">Date</th>
+        <th data-col="status_time">Time</th>
+        <th data-col="current_location">Location</th>
+        <th data-col="vessel_name">Vessel</th>
+        <th data-col="booking_number">Booking #</th>
+        <th data-col="bill_of_lading">B/L</th>
+        <th data-col="seal_number">Seal</th>
+        <th data-col="route">Route</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+  <div class="no-results" id="noResults" style="display:none">No matching transactions</div>
+</div>
+
+<div class="detail-panel" id="detailPanel">
+  <div class="detail-header">
+    <div>
+      <div class="detail-container" id="detailContainer">—</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px;" id="detailStatus">—</div>
+    </div>
+    <button class="close-btn" onclick="closeDetail()">✕</button>
+  </div>
+  <div class="detail-body" id="detailBody"></div>
+</div>
+
+<script>
+const DATA = [
+  {idx:1,  container_number:"MMAU1171701", booking_number:"USG379099", bill_of_lading:"USG379099",  seal_number:null,        contract_number:"299593314", status_code:"X6", status:"Container Ingate at Inland Facility",    status_date:"2025-03-27", status_time:"17:49", current_location:"INGATE GERMERSHEIM, RP, DE",  vessel_name:"MAERSK KANSAS",       voyage_number:"5G2510E", origin:"POCOMOKE CITY, US",      load_port:"NORFOLK, US",      discharge_port:"ANTWERP, BE",    final_delivery:"RAMSTEIN-MIESENBACH", locations:[{role:"Origin",port:"POCOMOKE CITY",country:"US",date:"2025-03-08",time:"12:00",type:"Actual"},{role:"Port of Loading",port:"NORFOLK",country:"US",date:"2025-03-12",time:"06:55",type:"Actual"},{role:"Port of Discharge",port:"ANTWERP",country:"BE",date:"2025-03-22",time:"13:10",type:"Actual"},{role:"Final Delivery",port:"RAMSTEIN-MIESENBACH",country:"DE",date:"2025-03-26",time:"17:30",type:"Actual"}]},
+  {idx:2,  container_number:"MRKU0234450", booking_number:"USG379092", bill_of_lading:"USG379092",  seal_number:"KR0643774", contract_number:"299593377", status_code:"X1", status:"Container Gate-In at Port of Loading",   status_date:"2025-03-27", status_time:"09:44", current_location:"FAIRFIELD, CA, US",           vessel_name:"PRESIDENT REAGAN",    voyage_number:"FV60KTE", origin:"BUSAN, KR",              load_port:"BUSAN, KR",        discharge_port:"OAKLAND, US",    final_delivery:"FAIRFIELD",           locations:[{role:"Origin",port:"BUSAN",country:"KR",date:"2025-02-27",time:"08:08",type:"Actual"},{role:"Port of Loading",port:"BUSAN",country:"KR",date:"2025-03-02",time:"19:01",type:"Actual"},{role:"Port of Discharge",port:"OAKLAND",country:"US",date:"2025-03-20",time:"16:21",type:"Actual"},{role:"Final Delivery",port:"FAIRFIELD",country:"",date:"2025-03-23",time:"20:00",type:"Actual"}]},
+  {idx:3,  container_number:"MRKU0088253", booking_number:"USG379092", bill_of_lading:"USG379092",  seal_number:"KR0643644", contract_number:"299593377", status_code:"X1", status:"Container Gate-In at Port of Loading",   status_date:"2025-03-27", status_time:"09:20", current_location:"FAIRFIELD, CA, US",           vessel_name:"PRESIDENT REAGAN",    voyage_number:"FV60KTE", origin:"BUSAN, KR",              load_port:"BUSAN, KR",        discharge_port:"OAKLAND, US",    final_delivery:"FAIRFIELD",           locations:[{role:"Origin",port:"BUSAN",country:"KR",date:"2025-02-27",time:"08:09",type:"Actual"},{role:"Port of Loading",port:"BUSAN",country:"KR",date:"2025-03-02",time:"19:01",type:"Actual"},{role:"Port of Discharge",port:"OAKLAND",country:"US",date:"2025-03-20",time:"16:22",type:"Actual"},{role:"Final Delivery",port:"FAIRFIELD",country:"",date:"2025-03-23",time:"20:00",type:"Actual"}]},
+  {idx:4,  container_number:"TRHU7741806", booking_number:"USG377356", bill_of_lading:"USG377356",  seal_number:null,        contract_number:"299593377", status_code:"X1", status:"Container Gate-In at Port of Loading",   status_date:"2025-03-27", status_time:"09:09", current_location:"FAIRFIELD, CA, US",           vessel_name:"PRESIDENT REAGAN",    voyage_number:"FV60KTE", origin:"YOKOSUKA KANAGAWA, JP",  load_port:"YOKOHAMA, JP",     discharge_port:"OAKLAND, US",    final_delivery:"FAIRFIELD",           locations:[{role:"Origin",port:"YOKOSUKA KANAGAWA",country:"JP",date:"2025-02-15",time:"00:01",type:"Actual"},{role:"Port of Loading",port:"YOKOHAMA",country:"JP",date:"2025-02-20",time:"23:15",type:"Actual"},{role:"Port of Discharge",port:"OAKLAND",country:"US",date:"2025-03-20",time:"16:26",type:"Actual"},{role:"Final Delivery",port:"FAIRFIELD",country:"",date:"2025-03-23",time:"20:00",type:"Actual"}]},
+  {idx:5,  container_number:"MRSU0559314", booking_number:"USMY06971", bill_of_lading:"US0610152",  seal_number:null,        contract_number:"299593314", status_code:"I",  status:"Container Ingate",                     status_date:"2025-03-26", status_time:"10:43", current_location:"OAKLAND, CA, US",             vessel_name:"PRESIDENT CARTER",    voyage_number:"HM60KWW", origin:"OAKLAND, US",            load_port:"OAKLAND, US",      discharge_port:"YOKOHAMA, JP",   final_delivery:"MISAWA",              locations:[{role:"Origin",port:"OAKLAND",country:"US",date:"2025-03-26",time:"10:43",type:"Actual"},{role:"Port of Loading",port:"OAKLAND",country:"US",date:"2025-03-31",time:"04:00",type:"Estimated"},{role:"Port of Discharge",port:"YOKOHAMA",country:"JP",date:"2025-04-11",time:"08:00",type:"Estimated"},{role:"Final Delivery",port:"MISAWA",country:"",date:"2025-04-12",time:"15:00",type:"Estimated"}]},
+  {idx:6,  container_number:"GCXU6394429", booking_number:"USG379236", bill_of_lading:"USG379236",  seal_number:null,        contract_number:"299593377", status_code:"AE", status:"Loaded on Vessel (Departed)",           status_date:"2025-03-23", status_time:"07:43", current_location:"ANTWERP, 01, BE",             vessel_name:"MAERSK KANSAS",       voyage_number:"5G2512W", origin:"MEMMINGEN, DE",          load_port:"ANTWERP, BE",      discharge_port:"NORFOLK, US",    final_delivery:"WILLIAMSBURG",        locations:[{role:"Origin",port:"MEMMINGEN",country:"DE",date:"2025-03-17",time:"22:00",type:"Actual"},{role:"Port of Loading",port:"ANTWERP",country:"BE",date:"2025-03-23",time:"13:30",type:"Actual"},{role:"Port of Discharge",port:"NORFOLK",country:"US",date:"2025-04-05",time:"18:00",type:"Estimated"},{role:"Final Delivery",port:"WILLIAMSBURG",country:"",date:"2025-04-10",time:"07:00",type:"Estimated"}]},
+  {idx:7,  container_number:"GCXU6394429", booking_number:"USG379236", bill_of_lading:"USG379236",  seal_number:null,        contract_number:"299593377", status_code:"AE", status:"Loaded on Vessel (Departed)",           status_date:"2025-03-23", status_time:"07:43", current_location:"ANTWERP, 01, BE",             vessel_name:"MAERSK KANSAS",       voyage_number:"5G2512W", origin:"MEMMINGEN, DE",          load_port:"ANTWERP, BE",      discharge_port:"NORFOLK, US",    final_delivery:"WILLIAMSBURG",        locations:[{role:"Origin",port:"MEMMINGEN",country:"DE",date:"2025-03-17",time:"22:00",type:"Actual"},{role:"Port of Loading",port:"ANTWERP",country:"BE",date:"2025-03-23",time:"13:30",type:"Actual"},{role:"Port of Discharge",port:"NORFOLK",country:"US",date:"2025-04-05",time:"18:00",type:"Estimated"},{role:"Final Delivery",port:"WILLIAMSBURG",country:"",date:"2025-04-10",time:"07:00",type:"Estimated"}]},
+  {idx:8,  container_number:"GCXU6394429", booking_number:"USG379236", bill_of_lading:"USG379236",  seal_number:null,        contract_number:"299593377", status_code:"VD", status:"Vessel Departed",                       status_date:"2025-03-23", status_time:"13:30", current_location:"ANTWERP, 01, BE",             vessel_name:"MAERSK KANSAS",       voyage_number:"5G2512W", origin:"MEMMINGEN, DE",          load_port:"ANTWERP, BE",      discharge_port:"NORFOLK, US",    final_delivery:"WILLIAMSBURG",        locations:[{role:"Origin",port:"MEMMINGEN",country:"DE",date:"2025-03-17",time:"22:00",type:"Actual"},{role:"Port of Loading",port:"ANTWERP",country:"BE",date:"2025-03-23",time:"13:30",type:"Actual"},{role:"Port of Discharge",port:"NORFOLK",country:"US",date:"2025-04-05",time:"18:00",type:"Estimated"},{role:"Final Delivery",port:"WILLIAMSBURG",country:"",date:"2025-04-10",time:"07:00",type:"Estimated"}]},
+  {idx:9,  container_number:"GCXU6394429", booking_number:"USG379236", bill_of_lading:"USG379236",  seal_number:null,        contract_number:"299593377", status_code:"VD", status:"Vessel Departed",                       status_date:"2025-03-23", status_time:"13:30", current_location:"ANTWERP, 01, BE",             vessel_name:"MAERSK KANSAS",       voyage_number:"5G2512W", origin:"MEMMINGEN, DE",          load_port:"ANTWERP, BE",      discharge_port:"NORFOLK, US",    final_delivery:"WILLIAMSBURG",        locations:[{role:"Origin",port:"MEMMINGEN",country:"DE",date:"2025-03-17",time:"22:00",type:"Actual"},{role:"Port of Loading",port:"ANTWERP",country:"BE",date:"2025-03-23",time:"13:30",type:"Actual"},{role:"Port of Discharge",port:"NORFOLK",country:"US",date:"2025-04-05",time:"18:00",type:"Estimated"},{role:"Final Delivery",port:"WILLIAMSBURG",country:"",date:"2025-04-10",time:"07:00",type:"Estimated"}]},
+  {idx:10, container_number:"TEMU7282236", booking_number:"USG379236", bill_of_lading:"USG379236",  seal_number:null,        contract_number:"299593377", status_code:"AE", status:"Loaded on Vessel (Departed)",           status_date:"2025-03-23", status_time:"12:04", current_location:"ANTWERP, 01, BE",             vessel_name:"MAERSK KANSAS",       voyage_number:"5G2512W", origin:"MEMMINGEN, DE",          load_port:"ANTWERP, BE",      discharge_port:"NORFOLK, US",    final_delivery:"WILLIAMSBURG",        locations:[{role:"Origin",port:"MEMMINGEN",country:"DE",date:"2025-03-17",time:"22:00",type:"Actual"},{role:"Port of Loading",port:"ANTWERP",country:"BE",date:"2025-03-23",time:"13:30",type:"Actual"},{role:"Port of Discharge",port:"NORFOLK",country:"US",date:"2025-04-05",time:"18:00",type:"Estimated"},{role:"Final Delivery",port:"WILLIAMSBURG",country:"",date:"2025-04-10",time:"07:00",type:"Estimated"}]},
+  {idx:11, container_number:"TEMU7282236", booking_number:"USG379236", bill_of_lading:"USG379236",  seal_number:null,        contract_number:"299593377", status_code:"AE", status:"Loaded on Vessel (Departed)",           status_date:"2025-03-23", status_time:"12:04", current_location:"ANTWERP, 01, BE",             vessel_name:"MAERSK KANSAS",       voyage_number:"5G2512W", origin:"MEMMINGEN, DE",          load_port:"ANTWERP, BE",      discharge_port:"NORFOLK, US",    final_delivery:"WILLIAMSBURG",        locations:[{role:"Origin",port:"MEMMINGEN",country:"DE",date:"2025-03-17",time:"22:00",type:"Actual"},{role:"Port of Loading",port:"ANTWERP",country:"BE",date:"2025-03-23",time:"13:30",type:"Actual"},{role:"Port of Discharge",port:"NORFOLK",country:"US",date:"2025-04-05",time:"18:00",type:"Estimated"},{role:"Final Delivery",port:"WILLIAMSBURG",country:"",date:"2025-04-10",time:"07:00",type:"Estimated"}]},
+  {idx:12, container_number:"TEMU7282236", booking_number:"USG379236", bill_of_lading:"USG379236",  seal_number:null,        contract_number:"299593377", status_code:"VD", status:"Vessel Departed",                       status_date:"2025-03-23", status_time:"13:30", current_location:"ANTWERP, 01, BE",             vessel_name:"MAERSK KANSAS",       voyage_number:"5G2512W", origin:"MEMMINGEN, DE",          load_port:"ANTWERP, BE",      discharge_port:"NORFOLK, US",    final_delivery:"WILLIAMSBURG",        locations:[{role:"Origin",port:"MEMMINGEN",country:"DE",date:"2025-03-17",time:"22:00",type:"Actual"},{role:"Port of Loading",port:"ANTWERP",country:"BE",date:"2025-03-23",time:"13:30",type:"Actual"},{role:"Port of Discharge",port:"NORFOLK",country:"US",date:"2025-04-05",time:"18:00",type:"Estimated"},{role:"Final Delivery",port:"WILLIAMSBURG",country:"",date:"2025-04-10",time:"07:00",type:"Estimated"}]},
+  {idx:13, container_number:"TEMU7282236", booking_number:"USG379236", bill_of_lading:"USG379236",  seal_number:null,        contract_number:"299593377", status_code:"VD", status:"Vessel Departed",                       status_date:"2025-03-23", status_time:"13:30", current_location:"ANTWERP, 01, BE",             vessel_name:"MAERSK KANSAS",       voyage_number:"5G2512W", origin:"MEMMINGEN, DE",          load_port:"ANTWERP, BE",      discharge_port:"NORFOLK, US",    final_delivery:"WILLIAMSBURG",        locations:[{role:"Origin",port:"MEMMINGEN",country:"DE",date:"2025-03-17",time:"22:00",type:"Actual"},{role:"Port of Loading",port:"ANTWERP",country:"BE",date:"2025-03-23",time:"13:30",type:"Actual"},{role:"Port of Discharge",port:"NORFOLK",country:"US",date:"2025-04-05",time:"18:00",type:"Estimated"},{role:"Final Delivery",port:"WILLIAMSBURG",country:"",date:"2025-04-10",time:"07:00",type:"Estimated"}]},
+  {idx:14, container_number:"MRKU5073560", booking_number:"USG379964", bill_of_lading:"USG379964",  seal_number:null,        contract_number:"299593314", status_code:"I",  status:"Container Ingate",                     status_date:"2025-03-27", status_time:"12:22", current_location:"NORFOLK, VA, US",             vessel_name:"MAERSK MONTANA",      voyage_number:"047513E", origin:"NORFOLK, US",            load_port:"NORFOLK, US",      discharge_port:"ANTWERP, BE",    final_delivery:"LINGENFELD",          locations:[{role:"Origin",port:"NORFOLK",country:"US",date:"2025-03-27",time:"12:22",type:"Actual"},{role:"Port of Loading",port:"NORFOLK",country:"US",date:"2025-03-31",time:"01:00",type:"Estimated"},{role:"Port of Discharge",port:"ANTWERP",country:"BE",date:"2025-04-10",time:"06:00",type:"Estimated"},{role:"Final Delivery",port:"LINGENFELD",country:"",date:"2025-04-14",time:"11:30",type:"Estimated"}]},
+  {idx:15, container_number:"MRKU5073560", booking_number:"USG379964", bill_of_lading:"USG379964",  seal_number:null,        contract_number:"299593314", status_code:"W",  status:"Container at Warehouse / Gate-In",      status_date:"2025-03-27", status_time:"08:22", current_location:"NORFOLK, VA, US",             vessel_name:"MAERSK MONTANA",      voyage_number:"047513E", origin:"NORFOLK, US",            load_port:"NORFOLK, US",      discharge_port:"ANTWERP, BE",    final_delivery:"LINGENFELD",          locations:[{role:"Origin",port:"NORFOLK",country:"US",date:"2025-03-27",time:"12:22",type:"Actual"},{role:"Port of Loading",port:"NORFOLK",country:"US",date:"2025-03-31",time:"01:00",type:"Estimated"},{role:"Port of Discharge",port:"ANTWERP",country:"BE",date:"2025-04-10",time:"06:00",type:"Estimated"},{role:"Final Delivery",port:"LINGENFELD",country:"",date:"2025-04-14",time:"11:30",type:"Estimated"}]},
+  {idx:16, container_number:"MNBU4521090", booking_number:"USG377938", bill_of_lading:"USG377938",  seal_number:null,        contract_number:"299593377", status_code:"X6", status:"Container Ingate at Inland Facility",    status_date:"2025-03-27", status_time:"17:57", current_location:"INGATE GERMERSHEIM, RP, DE",  vessel_name:"MAERSK KANSAS",       voyage_number:"5G2510E", origin:"SPARKS, US",             load_port:"HOUSTON, US",      discharge_port:"ANTWERP, BE",    final_delivery:"FRANKFURT AM MAIN",   locations:[{role:"Origin",port:"SPARKS",country:"US",date:"2025-02-22",time:"06:00",type:"Actual"},{role:"Port of Loading",port:"HOUSTON",country:"US",date:"2025-03-07",time:"15:47",type:"Actual"},{role:"Port of Discharge",port:"ANTWERP",country:"BE",date:"2025-03-22",time:"22:39",type:"Actual"},{role:"Final Delivery",port:"FRANKFURT AM MAIN",country:"DE",date:"2025-03-26",time:"17:30",type:"Actual"}]},
+  {idx:17, container_number:"MRKU0215580", booking_number:"USG376140", bill_of_lading:"USG376140",  seal_number:null,        contract_number:"299593377", status_code:"X6", status:"Container Ingate at Inland Facility",    status_date:"2025-03-27", status_time:"15:06", current_location:"OUTGATE GERMERSHEIM, RP, DE", vessel_name:"MAERSK TENNESSEE",    voyage_number:"5G3506E", origin:"EVANSVILLE, US",         load_port:"NORFOLK, US",      discharge_port:"BREMERHAVEN, DE",final_delivery:"GRAFENWOEHR",         locations:[{role:"Origin",port:"EVANSVILLE",country:"US",date:"2025-02-14",time:"19:00",type:"Actual"},{role:"Port of Loading",port:"NORFOLK",country:"US",date:"2025-02-23",time:"16:27",type:"Actual"},{role:"Port of Discharge",port:"BREMERHAVEN",country:"DE",date:"2025-03-12",time:"16:44",type:"Actual"},{role:"Final Delivery",port:"GRAFENWOEHR",country:"DE",date:"2025-03-13",time:"21:59",type:"Actual"}]},
+  {idx:18, container_number:"SLZU2896766", booking_number:"USG380678", bill_of_lading:"USG380678",  seal_number:null,        contract_number:"299593377", status_code:"I",  status:"Container Ingate",                     status_date:"2025-03-27", status_time:"10:01", current_location:"LOS ANGELES, CA, US",         vessel_name:"PRESIDENT JQ ADAMS",  voyage_number:"GM40KYW", origin:"LOS ANGELES, US",        load_port:"LOS ANGELES, US",  discharge_port:"BUSAN, KR",      final_delivery:"BUSAN",               locations:[{role:"Origin",port:"LOS ANGELES",country:"US",date:"2025-03-27",time:"10:01",type:"Actual"},{role:"Port of Loading",port:"LOS ANGELES",country:"US",date:"2025-04-03",time:"04:00",type:"Estimated"},{role:"Port of Discharge",port:"BUSAN",country:"KR",date:"2025-04-22",time:"04:00",type:"Estimated"},{role:"Final Delivery",port:"BUSAN",country:"KR",date:"2025-04-22",time:"04:00",type:"Estimated"}]},
+  {idx:19, container_number:"SLZU2896766", booking_number:"USG380678", bill_of_lading:"USG380678",  seal_number:null,        contract_number:"299593377", status_code:"W",  status:"Container at Warehouse / Gate-In",      status_date:"2025-03-27", status_time:"06:01", current_location:"LOS ANGELES, CA, US",         vessel_name:"PRESIDENT JQ ADAMS",  voyage_number:"GM40KYW", origin:"LOS ANGELES, US",        load_port:"LOS ANGELES, US",  discharge_port:"BUSAN, KR",      final_delivery:"BUSAN",               locations:[{role:"Origin",port:"LOS ANGELES",country:"US",date:"2025-03-27",time:"10:01",type:"Actual"},{role:"Port of Loading",port:"LOS ANGELES",country:"US",date:"2025-04-03",time:"04:00",type:"Estimated"},{role:"Port of Discharge",port:"BUSAN",country:"KR",date:"2025-04-22",time:"04:00",type:"Estimated"},{role:"Final Delivery",port:"BUSAN",country:"KR",date:"2025-04-22",time:"04:00",type:"Estimated"}]},
+  {idx:20, container_number:"HASU4162433", booking_number:"USMY07031", bill_of_lading:"US0610055",  seal_number:null,        contract_number:"299593314", status_code:"AE", status:"Loaded on Vessel (Departed)",           status_date:"2025-03-27", status_time:"09:59", current_location:"LOS ANGELES, CA, US",         vessel_name:"PRESIDENT CARTER",    voyage_number:"HM60KWW", origin:"RIVERSIDE, US",          load_port:"LOS ANGELES, US",  discharge_port:"YOKOHAMA, JP",   final_delivery:"YOKOSUKA KANAGAWA",   locations:[{role:"Origin",port:"RIVERSIDE",country:"US",date:"2025-03-23",time:"12:00",type:"Actual"},{role:"Port of Loading",port:"LOS ANGELES",country:"US",date:"2025-03-28",time:"09:00",type:"Estimated"},{role:"Port of Discharge",port:"YOKOHAMA",country:"JP",date:"2025-04-11",time:"08:00",type:"Estimated"},{role:"Final Delivery",port:"YOKOSUKA KANAGAWA",country:"JP",date:"2025-04-12",time:"16:00",type:"Estimated"}]},
+  {idx:21, container_number:"MNBU3517602", booking_number:"USG378715", bill_of_lading:"USG378715",  seal_number:null,        contract_number:"299593377", status_code:"I",  status:"Container Ingate",                     status_date:"2025-03-27", status_time:"12:03", current_location:"HOUSTON, TX, US",             vessel_name:"MAERSK TENNESSEE",    voyage_number:"5G3514E", origin:"FORT WORTH, US",         load_port:"HOUSTON, US",      discharge_port:"ANTWERP, BE",    final_delivery:"FRANKFURT AM MAIN",   locations:[{role:"Origin",port:"FORT WORTH",country:"US",date:"2025-03-13",time:"17:00",type:"Actual"},{role:"Port of Loading",port:"HOUSTON",country:"US",date:"2025-03-31",time:"18:00",type:"Estimated"},{role:"Port of Discharge",port:"ANTWERP",country:"BE",date:"2025-04-17",time:"06:00",type:"Estimated"},{role:"Final Delivery",port:"FRANKFURT AM MAIN",country:"DE",date:"2025-04-21",time:"10:30",type:"Estimated"}]},
+  {idx:22, container_number:"MNBU3517602", booking_number:"USG378715", bill_of_lading:"USG378715",  seal_number:null,        contract_number:"299593377", status_code:"W",  status:"Container at Warehouse / Gate-In",      status_date:"2025-03-27", status_time:"08:03", current_location:"FORT WORTH, TX, US",          vessel_name:"MAERSK TENNESSEE",    voyage_number:"5G3514E", origin:"FORT WORTH, US",         load_port:"HOUSTON, US",      discharge_port:"ANTWERP, BE",    final_delivery:"FRANKFURT AM MAIN",   locations:[{role:"Origin",port:"FORT WORTH",country:"US",date:"2025-03-13",time:"17:00",type:"Actual"},{role:"Port of Loading",port:"HOUSTON",country:"US",date:"2025-03-31",time:"18:00",type:"Estimated"},{role:"Port of Discharge",port:"ANTWERP",country:"BE",date:"2025-04-17",time:"06:00",type:"Estimated"},{role:"Final Delivery",port:"FRANKFURT AM MAIN",country:"DE",date:"2025-04-21",time:"10:30",type:"Estimated"}]},
+  {idx:23, container_number:"HASU4581086", booking_number:"USMY07147", bill_of_lading:"USMY07147",  seal_number:null,        contract_number:"299593314", status_code:"I",  status:"Container Ingate",                     status_date:"2025-03-27", status_time:"09:44", current_location:"OAKLAND, CA, US",             vessel_name:"PRESIDENT CARTER",    voyage_number:"HM60KWW", origin:"FRENCH CAMP, US",        load_port:"OAKLAND, US",      discharge_port:"YOKOHAMA, JP",   final_delivery:"MISAWA",              locations:[{role:"Origin",port:"FRENCH CAMP",country:"US",date:"2025-03-28",time:"16:00",type:"Estimated"},{role:"Port of Loading",port:"OAKLAND",country:"US",date:"2025-03-31",time:"04:00",type:"Estimated"},{role:"Port of Discharge",port:"YOKOHAMA",country:"JP",date:"2025-04-11",time:"08:00",type:"Estimated"},{role:"Final Delivery",port:"MISAWA",country:"",date:"2025-04-12",time:"15:00",type:"Estimated"}]},
+  {idx:24, container_number:"HASU4581086", booking_number:"USMY07147", bill_of_lading:"USMY07147",  seal_number:null,        contract_number:"299593314", status_code:"W",  status:"Container at Warehouse / Gate-In",      status_date:"2025-03-27", status_time:"05:44", current_location:"FRENCH CAMP, CA, US",         vessel_name:"PRESIDENT CARTER",    voyage_number:"HM60KWW", origin:"FRENCH CAMP, US",        load_port:"OAKLAND, US",      discharge_port:"YOKOHAMA, JP",   final_delivery:"MISAWA",              locations:[{role:"Origin",port:"FRENCH CAMP",country:"US",date:"2025-03-28",time:"16:00",type:"Estimated"},{role:"Port of Loading",port:"OAKLAND",country:"US",date:"2025-03-31",time:"04:00",type:"Estimated"},{role:"Port of Discharge",port:"YOKOHAMA",country:"JP",date:"2025-04-11",time:"08:00",type:"Estimated"},{role:"Final Delivery",port:"MISAWA",country:"",date:"2025-04-12",time:"15:00",type:"Estimated"}]},
+  {idx:25, container_number:"MSKU6211304", booking_number:"USG379964", bill_of_lading:"252014257",  seal_number:null,        contract_number:"299593314", status_code:"I",  status:"Container Ingate",                     status_date:"2025-03-27", status_time:"12:38", current_location:"NORFOLK, VA, US",             vessel_name:"MAERSK MONTANA",      voyage_number:"047513E", origin:"NORFOLK, US",            load_port:"NORFOLK, US",      discharge_port:"ANTWERP, BE",    final_delivery:"LINGENFELD",          locations:[{role:"Origin",port:"NORFOLK",country:"US",date:"2025-03-27",time:"12:38",type:"Actual"},{role:"Port of Loading",port:"NORFOLK",country:"US",date:"2025-03-31",time:"01:00",type:"Estimated"},{role:"Port of Discharge",port:"ANTWERP",country:"BE",date:"2025-04-10",time:"06:00",type:"Estimated"},{role:"Final Delivery",port:"LINGENFELD",country:"",date:"2025-04-14",time:"11:30",type:"Estimated"}]},
+  {idx:26, container_number:"MSKU6211304", booking_number:"USG379964", bill_of_lading:"252014257",  seal_number:null,        contract_number:"299593314", status_code:"W",  status:"Container at Warehouse / Gate-In",      status_date:"2025-03-27", status_time:"08:38", current_location:"NORFOLK, VA, US",             vessel_name:"MAERSK MONTANA",      voyage_number:"047513E", origin:"NORFOLK, US",            load_port:"NORFOLK, US",      discharge_port:"ANTWERP, BE",    final_delivery:"LINGENFELD",          locations:[{role:"Origin",port:"NORFOLK",country:"US",date:"2025-03-27",time:"12:38",type:"Actual"},{role:"Port of Loading",port:"NORFOLK",country:"US",date:"2025-03-31",time:"01:00",type:"Estimated"},{role:"Port of Discharge",port:"ANTWERP",country:"BE",date:"2025-04-10",time:"06:00",type:"Estimated"},{role:"Final Delivery",port:"LINGENFELD",country:"",date:"2025-04-14",time:"11:30",type:"Estimated"}]},
+  {idx:27, container_number:"MRSU6862842", booking_number:"USMY06883", bill_of_lading:"USMY06883",  seal_number:null,        contract_number:"299593314", status_code:"I",  status:"Container Ingate",                     status_date:"2025-03-27", status_time:"12:36", current_location:"NORFOLK, VA, US",             vessel_name:"MAERSK MONTANA",      voyage_number:"047513E", origin:"NORFOLK, US",            load_port:"NORFOLK, US",      discharge_port:"ANTWERP, BE",    final_delivery:"GERMERSHEIM",         locations:[{role:"Origin",port:"NORFOLK",country:"US",date:"2025-03-27",time:"12:36",type:"Actual"},{role:"Port of Loading",port:"NORFOLK",country:"US",date:"2025-03-31",time:"01:00",type:"Estimated"},{role:"Port of Discharge",port:"ANTWERP",country:"BE",date:"2025-04-10",time:"06:00",type:"Estimated"},{role:"Final Delivery",port:"GERMERSHEIM",country:"DE",date:"2025-04-14",time:"11:30",type:"Estimated"}]},
+  {idx:28, container_number:"MRSU6862842", booking_number:"USMY06883", bill_of_lading:"USMY06883",  seal_number:null,        contract_number:"299593314", status_code:"W",  status:"Container at Warehouse / Gate-In",      status_date:"2025-03-27", status_time:"08:36", current_location:"NORFOLK, VA, US",             vessel_name:"MAERSK MONTANA",      voyage_number:"047513E", origin:"NORFOLK, US",            load_port:"NORFOLK, US",      discharge_port:"ANTWERP, BE",    final_delivery:"GERMERSHEIM",         locations:[{role:"Origin",port:"NORFOLK",country:"US",date:"2025-03-27",time:"12:36",type:"Actual"},{role:"Port of Loading",port:"NORFOLK",country:"US",date:"2025-03-31",time:"01:00",type:"Estimated"},{role:"Port of Discharge",port:"ANTWERP",country:"BE",date:"2025-04-10",time:"06:00",type:"Estimated"},{role:"Final Delivery",port:"GERMERSHEIM",country:"DE",date:"2025-04-14",time:"11:30",type:"Estimated"}]},
+  {idx:29, container_number:"MSKU0449830", booking_number:"USG375278", bill_of_lading:"USG375278",  seal_number:null,        contract_number:"299593377", status_code:"RD", status:"Container Returned Empty",              status_date:"2025-03-27", status_time:"13:19", current_location:"NEWARK, NJ, US",              vessel_name:"MAERSK CHICAGO",      voyage_number:"Q4K452W", origin:"NAPLES, IT",             load_port:"NAPLES, IT",       discharge_port:"NEWARK, US",     final_delivery:"SUFFOLK",             locations:[{role:"Origin",port:"NAPLES",country:"IT",date:"2025-01-09",time:"19:44",type:"Actual"},{role:"Port of Loading",port:"NAPLES",country:"IT",date:"2025-01-15",time:"15:20",type:"Actual"},{role:"Port of Discharge",port:"NEWARK",country:"US",date:"2025-02-11",time:"06:18",type:"Actual"},{role:"Final Delivery",port:"SUFFOLK",country:"US",date:"2025-02-20",time:"01:00",type:"Actual"}]},
+  {idx:30, container_number:"MRKU6349082", booking_number:"USMY06681", bill_of_lading:"US0608345",  seal_number:null,        contract_number:"299593377", status_code:"X6", status:"Container Ingate at Inland Facility",    status_date:"2025-03-27", status_time:"18:19", current_location:"INGATE GERMERSHEIM, RP, DE",  vessel_name:"MAERSK KANSAS",       voyage_number:"5G2510E", origin:"NEWPORT NEWS, US",       load_port:"NORFOLK, US",      discharge_port:"ANTWERP, BE",    final_delivery:"VILSECK",             locations:[{role:"Origin",port:"NEWPORT NEWS",country:"US",date:"2025-03-09",time:"12:00",type:"Actual"},{role:"Port of Loading",port:"NORFOLK",country:"US",date:"2025-03-12",time:"06:55",type:"Actual"},{role:"Port of Discharge",port:"ANTWERP",country:"BE",date:"2025-03-22",time:"23:39",type:"Actual"},{role:"Final Delivery",port:"VILSECK",country:"DE",date:"2025-03-27",time:"17:30",type:"Actual"}]},
+];
+
+const STATUS_BADGE = {
+  X1: 'badge-blue',   X2: 'badge-green',  X3: 'badge-green', X4: 'badge-orange',
+  X5: 'badge-purple', X6: 'badge-orange', X7: 'badge-yellow', X8: 'badge-green',
+  AE: 'badge-green',  VD: 'badge-purple', RD: 'badge-muted', I: 'badge-yellow',
+  W:  'badge-yellow', OA: 'badge-blue',   L:  'badge-blue'
+};
+
+let filtered = [...DATA];
+let activeFilter = 'ALL';
+let searchVal = '';
+let sortCol = 'idx';
+let sortDir = 1;
+let selectedIdx = null;
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+function buildStats() {
+  const byStatus = {};
+  const byVessel = {};
+  DATA.forEach(r => {
+    byStatus[r.status_code] = (byStatus[r.status_code]||0)+1;
+    byVessel[r.vessel_name] = (byVessel[r.vessel_name]||0)+1;
+  });
+  const vessels = Object.keys(byVessel).length;
+  const uniqContainers = new Set(DATA.map(r=>r.container_number)).size;
+
+  document.getElementById('statsBar').innerHTML = `
+    <div class="stat"><div class="stat-val">${DATA.length}</div><div class="stat-label">Transactions</div></div>
+    <div class="stat"><div class="stat-val">${uniqContainers}</div><div class="stat-label">Containers</div></div>
+    <div class="stat"><div class="stat-val">${vessels}</div><div class="stat-label">Vessels</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--green)">${byStatus['AE']||0}</div><div class="stat-label">On Vessel</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--yellow)">${(byStatus['I']||0)+(byStatus['W']||0)}</div><div class="stat-label">At Gate/CY</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--accent)">${(byStatus['X6']||0)+(byStatus['X1']||0)}</div><div class="stat-label">Ingated</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--purple)">${byStatus['VD']||0}</div><div class="stat-label">Vessel Departed</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--muted)">${byStatus['RD']||0}</div><div class="stat-label">Returned Empty</div></div>
+  `;
+}
+
+// ── Filters ───────────────────────────────────────────────────────────────────
+function buildFilters() {
+  const statuses = ['ALL', ...new Set(DATA.map(r=>r.status_code))];
+  document.getElementById('filterGroup').innerHTML = statuses.map(s =>
+    `<button class="filter-btn${s==='ALL'?' active':''}" data-status="${s}" onclick="setFilter('${s}')">${s}</button>`
+  ).join('');
+}
+
+function setFilter(code) {
+  activeFilter = code;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.status===code));
+  applyFilters();
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchVal = e.target.value.toLowerCase();
+  applyFilters();
+});
+
+function applyFilters() {
+  filtered = DATA.filter(r => {
+    const matchStatus = activeFilter === 'ALL' || r.status_code === activeFilter;
+    const matchSearch = !searchVal ||
+      (r.container_number||'').toLowerCase().includes(searchVal) ||
+      (r.booking_number||'').toLowerCase().includes(searchVal) ||
+      (r.bill_of_lading||'').toLowerCase().includes(searchVal) ||
+      (r.vessel_name||'').toLowerCase().includes(searchVal) ||
+      (r.current_location||'').toLowerCase().includes(searchVal) ||
+      (r.status||'').toLowerCase().includes(searchVal);
+    return matchStatus && matchSearch;
+  });
+  sortFiltered();
+  renderTable();
+}
+
+// ── Sort ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('th[data-col]').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (sortCol === col) sortDir *= -1; else { sortCol = col; sortDir = 1; }
+    document.querySelectorAll('th').forEach(t => t.classList.remove('sort-asc','sort-desc'));
+    th.classList.add(sortDir===1?'sort-asc':'sort-desc');
+    sortFiltered();
+    renderTable();
+  });
+});
+
+function sortFiltered() {
+  filtered.sort((a,b) => {
+    const va = a[sortCol]||'', vb = b[sortCol]||'';
+    return (va < vb ? -1 : va > vb ? 1 : 0) * sortDir;
+  });
+}
+
+// ── Render table ──────────────────────────────────────────────────────────────
+function renderTable() {
+  const tbody = document.getElementById('tableBody');
+  const noRes = document.getElementById('noResults');
+  document.getElementById('countChip').textContent = `${filtered.length} of ${DATA.length} records`;
+
+  if (!filtered.length) {
+    tbody.innerHTML = '';
+    noRes.style.display = 'block';
+    return;
+  }
+  noRes.style.display = 'none';
+
+  tbody.innerHTML = filtered.map((r, i) => {
+    const badgeCls = STATUS_BADGE[r.status_code] || 'badge-muted';
+    const routeHtml = `
+      <span class="route-port">${r.origin||'—'}</span>
+      <span class="route-arrow"> → </span>
+      <span>${r.load_port||'—'}</span>
+      <span class="route-arrow"> → </span>
+      <span>${r.discharge_port||'—'}</span>
+      <span class="route-arrow"> → </span>
+      <span style="color:var(--green)">${r.final_delivery||'—'}</span>
+    `;
+    const isSelected = selectedIdx === r.idx;
+    return `<tr class="${isSelected?'selected':''}" onclick="selectRow(${r.idx})" style="animation-delay:${i*15}ms">
+      <td class="mono dim">${String(r.idx).padStart(2,'0')}</td>
+      <td><span class="container-num">${r.container_number}</span></td>
+      <td><span class="badge ${badgeCls}">${r.status_code}</span></td>
+      <td class="mono">${r.status_date}</td>
+      <td class="mono dim">${r.status_time}</td>
+      <td class="mono" style="font-size:11px">${r.current_location}</td>
+      <td style="font-size:12px;font-weight:500">${r.vessel_name}</td>
+      <td class="mono dim" style="font-size:11px">${r.booking_number}</td>
+      <td class="mono dim" style="font-size:11px">${r.bill_of_lading}</td>
+      <td class="mono dim" style="font-size:11px">${r.seal_number||'—'}</td>
+      <td class="route-cell">${routeHtml}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Detail panel ──────────────────────────────────────────────────────────────
+function selectRow(idx) {
+  selectedIdx = selectedIdx === idx ? null : idx;
+  renderTable();
+  if (selectedIdx === null) { closeDetail(); return; }
+  const r = DATA.find(d=>d.idx===idx);
+  openDetail(r);
+}
+
+function openDetail(r) {
+  const badgeCls = STATUS_BADGE[r.status_code] || 'badge-muted';
+  document.getElementById('detailContainer').textContent = r.container_number || '(No container)';
+  document.getElementById('detailStatus').innerHTML = `<span class="badge ${badgeCls}">${r.status_code}</span> &nbsp;${r.status}`;
+
+  const routeNodes = r.locations.map((loc, i) => {
+    const dotCls = i===0 ? 'origin' : i===r.locations.length-1 ? 'final' : '';
+    const dtypeCls = loc.type==='Actual' ? 'route-node-type-actual' : 'route-node-type-estimated';
+    return `<div class="route-node">
+      <div class="route-dot ${dotCls}"></div>
+      <div class="route-node-content">
+        <div class="route-node-role">${loc.role}</div>
+        <div class="route-node-port">${loc.port}${loc.country?' · '+loc.country:''}</div>
+        <div class="route-node-date"><span class="${dtypeCls}">${loc.type}</span> &nbsp;${loc.date} ${loc.time}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('detailBody').innerHTML = `
+    <div class="detail-section">
+      <div class="detail-section-title">Event</div>
+      ${row('Status Date', r.status_date)}
+      ${row('Status Time', r.status_time)}
+      ${row('Location', r.current_location)}
+      ${row('Tx Control #', String(r.idx).padStart(9,'586900000').slice(-9))}
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">References</div>
+      ${row('Booking #', r.booking_number)}
+      ${row('Bill of Lading', r.bill_of_lading)}
+      ${row('Contract #', r.contract_number)}
+      ${row('Seal #', r.seal_number||'—')}
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">Vessel</div>
+      ${row('Name', r.vessel_name)}
+      ${row('Voyage', r.voyage_number)}
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">Route Timeline</div>
+      <div class="route-timeline">${routeNodes}</div>
+    </div>
+  `;
+
+  document.getElementById('detailPanel').classList.add('open');
+}
+
+function closeDetail() {
+  selectedIdx = null;
+  document.getElementById('detailPanel').classList.remove('open');
+  renderTable();
+}
+
+function row(key, val) {
+  return `<div class="detail-row">
+    <div class="detail-key">${key}</div>
+    <div class="detail-val">${val||'—'}</div>
+  </div>`;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+buildStats();
+buildFilters();
+applyFilters();
+</script>
+
+</body>
+</html>
