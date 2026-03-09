@@ -1,27 +1,53 @@
-from datetime import datetime
+from datetime import datetime, date
 
-def create_date_timestamp(date_val, time_val, date_fmt_input, time_fmt_input, 
-                          include_date=True, include_hour=True, include_seconds=False):
-    
-    # 1. Convert your formats (CCYYMMDD) into the codes Python understands (%Y%m%d)
-    # We'll call these 'translated' formats
-    translated_date_fmt = date_fmt_input.replace('CCYY', '%Y').replace('YY', '%y').replace('MM', '%m').replace('DD', '%d')
-    translated_time_fmt = time_fmt_input.replace('HH', '%H').replace('MM', '%M').replace('SS', '%S')
-    
-    # 2. Combine them into the single "Master" format and string
-    dt_format = f"{translated_date_fmt} {translated_time_fmt}"
-    dt_string = f"{date_val} {time_val}"
-    
-    # 3. Create the timestamp object
-    dt_obj = datetime.strptime(dt_string, dt_format)
+def create_date_timestamp(
+    date_val: str,
+    time_val: str,
+    date_fmt_input: str,
+    time_fmt_input: str,
+    *,
+    date_only: bool = False,
+) -> datetime:
+    """
+    Parse date and time strings into a datetime object.
 
-    # 4. Map the flags to the output string you want
-    return_map = {
-        (True, True, True):  "%Y-%m-%d %H:%M:%S",
-        (True, True, False): "%Y-%m-%d %H:%M",
-        (True, False, False): "%Y-%m-%d",
-    }
+    Args:
+        date_val:       Date string e.g. '20260112' or '260112'.
+        time_val:       Time string e.g. '2345'.
+        date_fmt_input: Date format using CCYY/YY/MM/DD e.g. 'CCYYMMDD'.
+        time_fmt_input: Time format using HH/MM/SS e.g. 'HHMM'.
+        date_only:      If True, return date only. Default returns datetime with zeroed seconds.
 
-    output_format = return_map.get((include_date, include_hour, include_seconds), "%Y-%m-%d")
-    
-    return dt_obj.strftime(output_format)
+    Returns:
+        datetime.date if date_only=True, otherwise datetime with seconds zeroed.
+
+    Examples:
+        >>> from datetime import datetime, date
+        >>> create_date_timestamp('20260112', '2345', 'CCYYMMDD', 'HHMM')
+        datetime.datetime(2026, 1, 12, 23, 45)
+
+        >>> create_date_timestamp('260112', '2345', 'CCYYMMDD', 'HHMM')
+        datetime.datetime(2026, 1, 12, 23, 45)
+
+        >>> create_date_timestamp('20260112', '2345', 'CCYYMMDD', 'HHMM', date_only=True)
+        datetime.date(2026, 1, 12)
+    """
+    if len(date_val) == 6:
+        date_fmt_input = date_fmt_input.replace('CCYY', 'YY')
+
+    translated_date_fmt = (date_fmt_input.replace('CCYY', '%Y')
+                                         .replace('YY', '%y')
+                                         .replace('MM', '%m')
+                                         .replace('DD', '%d'))
+    translated_time_fmt = (time_fmt_input.replace('HH', '%H')
+                                         .replace('MM', '%M')
+                                         .replace('SS', '%S'))
+
+    dt_obj = datetime.strptime(f"{date_val} {time_val}", f"{translated_date_fmt} {translated_time_fmt}")
+
+    if date_only:
+        return dt_obj.date()
+    return dt_obj.replace(second=0, microsecond=0)
+
+#import doctest
+#doctest.testmod()
