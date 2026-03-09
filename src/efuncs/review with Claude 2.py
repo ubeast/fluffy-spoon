@@ -1,22 +1,30 @@
 def get_widget_values(_dbutils) -> dict:
     """
-    Retrieves the current values of the standard reporting widgets.
-    
+    Retrieve current values of the standard reporting widgets.
+
+    Args:
+        _dbutils: Databricks dbutils object.
+
     Returns:
-        dict: A dictionary containing the selected filter values.
+        Dictionary of selected filter values, or empty dict on failure.
+
+    Examples:
+        >>> from unittest.mock import MagicMock
+        >>> dbutils = MagicMock()
+        >>> dbutils.widgets.get.side_effect = lambda k: {'COCOM': 'USEUCOM', 'Report Type': 'Monthly', 'Report Year': '2026', 'Report Month': '01'}[k]
+        >>> get_widget_values(dbutils)
+        {'cocom': 'USEUCOM', 'report_type': 'Monthly', 'report_year': '2026', 'report_month': '01'}
     """
     try:
-        filters = {
-            'cocom': _dbutils.widgets.get("COCOM"),
-            'report_type': _dbutils.widgets.get("Report Type"),
-            'report_year': _dbutils.widgets.get("Report Year"),
-            'report_month': _dbutils.widgets.get("Report Month")
+        return {
+            'cocom':        _dbutils.widgets.get("COCOM"),
+            'report_type':  _dbutils.widgets.get("Report Type"),
+            'report_year':  _dbutils.widgets.get("Report Year"),
+            'report_month': _dbutils.widgets.get("Report Month"),
         }
-        return filters
     except Exception as e:
         logging.error(f"Error retrieving widget values: {e}")
         return {}
 
-# Example Usage in a Databricks cell:
-# selected_filters = get_widget_values(dbutils)
-# print(f"Processing data for {selected_filters['cocom']} - {selected_filters['report_year']}")
+#import doctest
+#doctest.testmod(verbose=True)
