@@ -1,34 +1,46 @@
-import json
-import os
+def get_lookup_value(
+    lookup_key: str,
+    table: dict,
+    segment_element: str = None,
+    *,
+    include_lookup_key: bool = True,
+    include_ref_source: bool = False,
+    include_segment_element: bool = False,
+) -> str:
+    """
+    Look up a value from a reference table and return it with optional suffix tags.
 
-def get_look_up_value(segment_element: str, 
-                     data_element: str, 
-                     lookup_key: str, 
-                     include_lookup_code=True):
+    Args:
+        lookup_key:              The key to look up in the table.
+        table:                   A dictionary to look up from (see examples below).
+        segment_element:         Optional segment element appended as a tag.
+        include_lookup_key:      Append the lookup key as a tag e.g. (ZZ).
+        include_ref_source:      Append the source as a tag e.g. (DTEB).
+        include_segment_element: Append the segment element as a tag e.g. (BN402).
 
-    # 1. Determine the filename based on the data element
-    ref_table_name = f"{data_element}.json"
-    
-    # 2. Read the JSON file
-    # (Assuming the JSON is a simple key-value pair dictionary)
-    try:
-        with open(ref_table_name, 'r') as f:
-            ref_table = json.load(f)
-    except FileNotFoundError:
-        return f"Error: {ref_table_name} not found"
+    Returns:
+        The lookup value with any requested suffix tags.
 
-    # 3. Perform the lookup
-    # .get() prevents crashing if the key is missing
-    lookup_value = ref_table.get(str(lookup_key), "Unknown Value")
+    Examples:
+        >>> get_lookup_value("ZZ", {"ZZ": "Some Value"}, "BN402",
+        ...                  include_lookup_key=True, include_ref_source=True,
+        ...                  include_segment_element=True)
+        'Some Value (ZZ)(DTEB)(BN402)'
 
-    # 4. Format the output based on your logic
-    # Logic: Value + (Key) or Value + (Key)(DTEB)
-    if include_lookup_code:
-        return f"{lookup_value} ({lookup_key})(DTEB)"
-    else:
-        return f"{lookup_value} ({lookup_key})"
+        >>> get_lookup_value("XX", {"ZZ": "Some Value"}, include_lookup_key=False)
+        'Unknown Value'
+    """
+    lookup_value = table.get(str(lookup_key), "Unknown Value")
+    source = "DTEB"
 
-# Example Usage:
-# If 145.json contains {"BN402": "Beneficiary Name"}
-# result = get_look_up_value('BN402', '145', 'BN402')
-# print(result) -> "Beneficiary Name (BN402)(DTEB)"
+    tags = []
+    if include_lookup_key:       tags.append(f"({lookup_key})")
+    if include_ref_source:       tags.append(f"({source})")
+    if include_segment_element:  tags.append(f"({segment_element})")
+
+    suffix = (" " + "".join(tags)) if tags else ""
+    return f"{lookup_value}{suffix}"
+
+
+import doctest
+doctest.testmod()
