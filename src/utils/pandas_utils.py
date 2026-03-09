@@ -31,5 +31,11 @@ def pandas_show_as_markdown(df: pd.DataFrame) -> str:
 
     return md
 
+# Attach to DataFrame
+pd.DataFrame.show_as_markdown = show_as_markdown
+pd.DataFrame.to_csv_from_excel = to_csv_from_excel
+
+#import my_package.utils.pandas_utils
+
 #import doctest
 #doctest.testmod()
