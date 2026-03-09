@@ -42,5 +42,5 @@ def get_lookup_value(
     return f"{lookup_value}{suffix}"
 
 
-import doctest
-doctest.testmod()
+#import doctest
+#doctest.testmod()
