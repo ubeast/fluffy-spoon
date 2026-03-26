@@ -1,0 +1,19 @@
+{
+  "edi": "315",
+  "release": "004010",
+  "edi_file": "(default)",
+  "unique_segments": [
+    "ISA",
+    "GS",
+    "ST",
+    "B4",
+    "N9",
+    "Q2",
+    "R4",
+    "DTM",
+    "SE",
+    "GE",
+    "IEA"
+  ],
+  "count": 11
+}
